@@ -7,3 +7,11 @@ bool LexerUtils::is_digit(char c) {
 
     return false;
 }
+
+bool LexerUtils::is_alphabetical(char c) {
+    return true;
+}
+
+bool LexerUtils::is_underscore(char c) {
+    return true;
+}

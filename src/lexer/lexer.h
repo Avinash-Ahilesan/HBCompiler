@@ -8,12 +8,18 @@
 
     TYPES: int, float, string, char
 
-    
+    COMPARISON:
+
+    LOGICAL:
 
 */
 
 enum class TokenType {
+
     // identifier types
+    TYPE_INTEGER, TYPE_FLOAT, TYPE_CHAR, TYPE_STRING,
+
+    // value types
     VAL_INTEGER, VAL_FLOAT, VAL_CHAR, VAL_STRING,
 
     // variable
@@ -27,16 +33,24 @@ enum class TokenType {
 
 };
 
+struct Token {
+    TokenType token_type;
+    unsigned char **token_value;
+};
+
 class Lexer {
 
     public:
-        std::vector<TokenType> tokenize();
+        std::vector<Token> tokenize();
         Lexer(std::string source_file);
     private:
         char input_buffer[4096];
         std::ifstream f;
+        bool match_keyword(std::string keyword);
         char next_character();
-        TokenType lex_numerical_value();
+        void rollback();
+        Token lex_numerical_value(char first_char);
+        Token lex_starting_alphabetically(char first_char);
         int curr_char;   // Current Character in Input Buffer
         std::streamsize bytes_read; // Bytes read by file scanner
 

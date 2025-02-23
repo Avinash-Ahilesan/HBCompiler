@@ -3,6 +3,7 @@
 #include <iostream>
 #include "lexer.h"
 #include "lexer_utils.h"
+#include "../fileio/file_interface.h"
 #include <fstream>
 
 
@@ -19,8 +20,8 @@ char Lexer::next_character() {
         curr_char = -1;
 
         // read and re-fill buffer
-        f.read(input_buffer, sizeof(input_buffer) - 1);
-        bytes_read = f.gcount();
+        file_handler_interface->read(input_buffer, sizeof(input_buffer) - 1);
+        bytes_read = file_handler_interface->gcount();
         std::cout << "Next Character: refilled buffer, read " << bytes_read << " bytes"; 
     }
 
@@ -36,9 +37,16 @@ void Lexer::rollback() {
     curr_char--;
 }
 
-Lexer::Lexer(std::string source_file_name) {
-    f.open(source_file_name);
-    if (!f.is_open()) {
+/*
+    Constructor
+    Input: Source file which will be opened. Error thrown in constructor if 
+            file can't be opened
+*/
+Lexer::Lexer(std::string source_file_name, FileHandlerInterface* file_handler) {
+    // f.open(source_file_name);
+    file_handler->open(source_file_name);
+
+    if (!file_handler->is_open()) {
         throw std::runtime_error("Failed to open file");
     }
 
@@ -46,36 +54,47 @@ Lexer::Lexer(std::string source_file_name) {
     bytes_read = 0;
 
     // initialize input buffer
-    f.read(input_buffer, sizeof(input_buffer) - 1);
-    bytes_read = f.gcount();
+    // f.read(input_buffer, sizeof(input_buffer) - 1);
+    file_handler->read(input_buffer, sizeof(input_buffer) - 1);
+    bytes_read = file_handler->gcount();
+    this->file_handler_interface = file_handler;
     std::cout << "Read in: " << bytes_read << "bytes \n";
     std::cout << "Init Input Buffer: " << input_buffer << "\n";
 }
 
 
 Token Lexer::lex_numerical_value(char first_char) {
+    std::cout << "Lexing starting numerically";
     char next_char = next_character();
     Token token;
-    std::cout << "Lexing starting numerically";
-    // while (next_char != '\0') {
-    //     std::cout << "LEXING INT: " << next_char;
-    //     if (next_char == '.') {
-    //         token.token_type = TokenType::VAL_FLOAT;
-    //     }
-    //     if (!LexerUtils::is_digit(next_char)) {
-    //         throw std::runtime_error("Error: could not lex integer");
-    //     }
-    // }
-    
+    token.token_type = TokenType::VAL_INTEGER;
+    token.token_value += first_char;
+    while (next_char != '\0') {
+        std::cout << "LEXING INT: " << next_char;
+        if (next_char == '.') {
+            token.token_type = TokenType::VAL_FLOAT;
+        }
+        if (next_char == ' ') {
+            std::cout << "Found token: numerical";
+            return token;
+        }
+
+        if (!LexerUtils::is_digit(next_char)) {
+            throw std::runtime_error("Error: could not lex integer");
+        }
+        token.token_value += first_char;
+        next_char = next_character();
+    }
+    std::cout << "Found token: numerical: " << token.token_value << "\n";
     return token;
 }
 
-bool Lexer::match_keyword(std::string keyword) {
+bool Lexer::match_keyword(std::string keyword, bool rollback_on_no_trailing_space) {
     std::cout << "Attempting to match keyword: " << keyword;
     char next_char = next_character();
     for (int i = 1; i <= keyword.length(); i++) {
         if (i == keyword.length()) {
-            if (next_char != ' ') {
+            if (next_char != ' ' && rollback_on_no_trailing_space) {
                 std::cout << "Failed match 1";
                 for (int j  = i; j > 1; j--) {
                     rollback();
@@ -114,28 +133,28 @@ Token Lexer::lex_starting_alphabetically(char first_char) {
     // can likely optimize this -> instead of rollback, keep processing if we fail to find a keyword
     switch (first_char) {
         case 'i':
-            if (match_keyword(intKeyword)) {
+            if (match_keyword(intKeyword, true)) {
                 token.token_type = TokenType::TYPE_INTEGER;
                 std::cout << "Found integer keyword\n";
             }
             return token;
             break;
         case 'f':
-            if (match_keyword(floatKeyword)) {
+            if (match_keyword(floatKeyword, true)) {
                 token.token_type = TokenType::TYPE_FLOAT;
             }
             std::cout << "Found float keyword\n";
             return token;
             break;
         case 'c':
-            if (match_keyword(charKeyword)) {
+            if (match_keyword(charKeyword, true)) {
                 token.token_type = TokenType::TYPE_CHAR;
             } 
             return token;
             std::cout << "Found char keyword\n";
             break;
         case 's':
-            if (match_keyword(stringKeyword)) {
+            if (match_keyword(stringKeyword, true)) {
                 token.token_type = TokenType::TYPE_STRING;
             }
              std::cout << "Found string keyword\n";
@@ -143,31 +162,125 @@ Token Lexer::lex_starting_alphabetically(char first_char) {
             break;
     }
 
-    std::string identifier = "";
-    identifier += first_char;
+    token.token_value += first_char;
     char next_char = next_character();
 
+    token.token_type = TokenType::IDENTIFIER;
     std::cout << "Lexing starting alphabeically\n";
     while (next_char != '\0') {
-
         if (next_char == ' ') {
             // found valid identifier
             // create new identifier + type
-            token.token_type = TokenType::IDENTIFIER;
-            std::cout << "identifier: " << identifier;
+            std::cout << "identifier: " << token.token_value;
             return token;
-            // token.token_value = malloc()
         }
-
-        // abcd
         
+        // lets say the it's x- -> next symbol isn't alphabetical, or digit, or underscore, so we've found a word
+        // however, I suppose if we have a random symbol that shouldn't be found, like @, then we'll catch on next iteration
+        // when we try parse the next value
         if (!LexerUtils::is_alphabetical(next_char) && !LexerUtils::is_digit(next_char) && !LexerUtils::is_underscore(next_char)) {
-            throw std::runtime_error("Error: could not lex identifier");
+            rollback();
+            std::cout << "identifier: " << token.token_value;
+            return token;
         }
-        identifier += next_char;
+        token.token_value += next_char;
         next_char = next_character();
     }
     
+    return token;
+}
+
+Token Lexer::lex_symbol(char first_char) {
+    // is_special symobl finds couple of special symbols: { | } = ! + - / % ( ) ; & * > <
+    // however we should also identify some symbols like && and | | and -=, +=, *=, /=
+    std::cout << "Lexing symbol";
+    Token token;
+    switch (first_char) {
+        case '*':
+            if (match_keyword("*=", false)) {
+                token.token_type = TokenType::MULTIPLY_EQUALS;
+            } else {
+                token.token_type = TokenType::MULTIPLY;
+            }
+            break;
+        case '/':
+            if (match_keyword("/=", false)) {
+                token.token_type = TokenType::DIVIDE_EQUALS;
+            } else {
+                token.token_type = TokenType::DIVIDE;
+            }
+            break;
+        case '+':
+            if (match_keyword("+=", false)) {
+                token.token_type = TokenType::PLUS_EQUALS;
+            } else {
+                token.token_type = TokenType::PLUS;
+            }
+            break;
+        case '-':
+           if (match_keyword("-=", false)) {
+                token.token_type = TokenType::MINUS_EQUALS;
+           } else {
+                token.token_type = TokenType::MINUS;
+           }
+           break;
+        case '!':
+            if (match_keyword("!=", false)) {
+                token.token_type = TokenType::NOT_EQUALS;
+            } else {
+                token.token_type = TokenType::NOT;
+            }
+            break;
+        case '{':
+            token.token_type = TokenType::OPEN_CURLY_BRACKET;
+            break;
+        case '}':
+            token.token_type = TokenType::CLOSE_CURLY_BRACKET;
+            break;
+        case '(':
+            token.token_type = TokenType::OPEN_ROUND_BRACKET;
+            break;
+        case ')':
+            token.token_type = TokenType::CLOSE_ROUND_BRACKET;
+            break;
+        case '<':
+            if (match_keyword("<=", false)) {
+                token.token_type = TokenType::LESS_THAN_EQUALS;
+            } else {
+                token.token_type = TokenType::LESS_THAN;
+            }
+            break;
+        case '>':
+            if (match_keyword(">=", false)) {
+                token.token_type = TokenType::GREAT_THAN_EQUALS;
+            } else {
+                token.token_type = TokenType::GREATER_THAN;
+            }
+            break;    
+        case '%':
+            token.token_type = TokenType::MODULUS;
+            break;
+        case ';':
+            token.token_type = TokenType::END_STATEMENT;
+            break;
+        case '&':
+            if (match_keyword("&&", false)) {
+                token.token_type = TokenType::AND;
+            }
+            break;
+        case '|':
+            if (match_keyword("||", false)) {
+                token.token_type = TokenType::OR;
+            }
+            break;
+        case '=':
+            if (match_keyword("==", false)) {
+                token.token_type= TokenType::EQUALS;
+            } else {
+                token.token_type = TokenType::ASSIGNMENT;
+            }
+            break;
+    }
     return token;
 }
 
@@ -180,27 +293,31 @@ std::vector<Token> Lexer::tokenize() {
 
     char next_char = next_character();
     while (next_char != '\0') {
-        //std::cout << "main loop next char: " << next_char << "\n";
+        std::cout << "main loop next char: " << next_char << "\n";
         if (next_char == ' ') {
             next_char = next_character();
             continue;
         }
 
         if (LexerUtils::is_digit(next_char)) {
-            ret.push_back(lex_numerical_value(next_char));
+            Token retToken = lex_numerical_value(next_char);
+            ret.push_back(retToken);
         }
-
-        if (LexerUtils::is_alphabetical(next_char)) {
-            ret.push_back(lex_starting_alphabetically(next_char));
-             
+        else if (LexerUtils::is_alphabetical(next_char)) {
+            Token retToken = lex_starting_alphabetically(next_char);
+            ret.push_back(retToken);
+        }
+        else if (LexerUtils::is_special_symbol(next_char)) {
+            Token retToken = lex_symbol(next_char);
+            ret.push_back(retToken);
+        }
+        else {
+            throw std::runtime_error("Failed main lexing loop: error\n");
         }
 
         next_char = next_character();
     }
 
-    Token placeholder_token;
-    placeholder_token.token_type = TokenType::VAL_INTEGER;
-    ret.push_back(placeholder_token);
     return ret;
 }
 

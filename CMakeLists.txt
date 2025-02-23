@@ -17,15 +17,17 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
-add_executable(
-  lexer_test
-  tests/lexer_test.cc
-)
 
 add_executable(
     main
     ${SOURCE_FILES}
 )
+add_executable(
+  lexer_test
+  tests/lexer_test.cc
+)
+
+target_sources(lexer_test PRIVATE src/lexer/lexer.cpp src/lexer/lexer_utils.cpp)
 
 target_link_libraries(
   lexer_test

@@ -31,11 +31,15 @@ enum class TokenType {
     // arithmetic
     PLUS, MINUS, MULTIPLY, DIVIDE, PLUS_EQUALS, MINUS_EQUALS, MULTIPLY_EQUALS, DIVIDE_EQUALS, MODULUS,
 
-    // syntactic symnols
-    OPEN_CURLY_BRACKET, CLOSE_CURLY_BRACKET, OPEN_ROUND_BRACKET, CLOSE_ROUND_BRACKET, END_STATEMENT,
+
+    // syntactic symbols
+    OPEN_CURLY_BRACKET, CLOSE_CURLY_BRACKET, OPEN_ROUND_BRACKET, CLOSE_ROUND_BRACKET, QUOTE,
 
     // LOGICAL OPERATOR
-    AND, OR, NOT, NEGATE
+    AND, OR, NOT, NEGATE,
+
+    // LOGICAL CONTROLLERS (is this right wording?)
+    IF, ELSE
 
 };
 
@@ -58,6 +62,7 @@ class Lexer {
         Token lex_numerical_value(char first_char);
         Token lex_starting_alphabetically(char first_char);
         Token lex_symbol(char first_char);
+        Token lex_string(char first_Char);
         int curr_char;   // Current Character in Input Buffer
         std::streamsize bytes_read; // Bytes read by file scanner
 

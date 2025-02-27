@@ -62,27 +62,27 @@ Lexer::Lexer(std::string source_file_name, FileHandlerInterface* file_handler) {
     std::cout << "Init Input Buffer: " << input_buffer << "\n";
 }
 
-
+// 
 Token Lexer::lex_numerical_value(char first_char) {
     std::cout << "Lexing starting numerically";
     char next_char = next_character();
     Token token;
     token.token_type = TokenType::VAL_INTEGER;
     token.token_value += first_char;
-    while (next_char != '\0') {
+    while (next_char != '\0' && next_char != '\n') {
         std::cout << "LEXING INT: " << next_char;
         if (next_char == '.') {
             token.token_type = TokenType::VAL_FLOAT;
         }
-        if (next_char == ' ') {
+        if (next_char == ' ' || LexerUtils::is_special_symbol(next_char)) {
             std::cout << "Found token: numerical";
             return token;
         }
 
         if (!LexerUtils::is_digit(next_char)) {
             throw std::runtime_error("Error: could not lex integer");
-        }
-        token.token_value += first_char;
+        } 
+        token.token_value += next_char;
         next_char = next_character();
     }
     std::cout << "Found token: numerical: " << token.token_value << "\n";
@@ -92,6 +92,7 @@ Token Lexer::lex_numerical_value(char first_char) {
 bool Lexer::match_keyword(std::string keyword, bool rollback_on_no_trailing_space) {
     std::cout << "Attempting to match keyword: " << keyword;
     char next_char = next_character();
+    std::cout << "matching, next char is: " << next_char << "\n";
     for (int i = 1; i <= keyword.length(); i++) {
         if (i == keyword.length()) {
             if (next_char != ' ' && rollback_on_no_trailing_space) {
@@ -109,7 +110,7 @@ bool Lexer::match_keyword(std::string keyword, bool rollback_on_no_trailing_spac
         } else {
             std::cout << "Failed match 2";
             // rollback if not a match() 
-            for (int j  = i; j > 1; j--) {
+            for (int j  = i; j >= 1; j--) {
                 rollback();
             }
             return false;
@@ -122,10 +123,12 @@ bool Lexer::match_keyword(std::string keyword, bool rollback_on_no_trailing_spac
 // i -> n -> t
 Token Lexer::lex_starting_alphabetically(char first_char) {
     std::vector<std::string> identifierName;
-    std::string intKeyword = "int";
-    std::string floatKeyword = "float";
-    std::string charKeyword = "char";
-    std::string stringKeyword = "string";
+    const std::string intKeyword = "int";
+    const std::string floatKeyword = "float";
+    const std::string charKeyword = "char";
+    const std::string stringKeyword = "string";
+    const std::string ifKeyword = "if";
+    const std::string elseKeyword = "else";
 
     Token token;
 
@@ -133,11 +136,16 @@ Token Lexer::lex_starting_alphabetically(char first_char) {
     // can likely optimize this -> instead of rollback, keep processing if we fail to find a keyword
     switch (first_char) {
         case 'i':
+            if (match_keyword(ifKeyword, true)) {
+                token.token_type = TokenType::IF;
+                std::cout << "Found if keyword\n";
+                return token;
+            }
             if (match_keyword(intKeyword, true)) {
                 token.token_type = TokenType::TYPE_INTEGER;
                 std::cout << "Found integer keyword\n";
+                return token;
             }
-            return token;
             break;
         case 'f':
             if (match_keyword(floatKeyword, true)) {
@@ -160,6 +168,13 @@ Token Lexer::lex_starting_alphabetically(char first_char) {
              std::cout << "Found string keyword\n";
             return token;
             break;
+        case 'e':
+            if (match_keyword(elseKeyword, true)) {
+                token.token_type = TokenType::ELSE;
+                return token;
+                 std::cout << "Found else keyword\n";
+            }
+            break;
     }
 
     token.token_value += first_char;
@@ -168,7 +183,7 @@ Token Lexer::lex_starting_alphabetically(char first_char) {
     token.token_type = TokenType::IDENTIFIER;
     std::cout << "Lexing starting alphabeically\n";
     while (next_char != '\0') {
-        if (next_char == ' ') {
+        if (next_char == ' ' || next_char =='\n') {
             // found valid identifier
             // create new identifier + type
             std::cout << "identifier: " << token.token_value;
@@ -260,9 +275,6 @@ Token Lexer::lex_symbol(char first_char) {
         case '%':
             token.token_type = TokenType::MODULUS;
             break;
-        case ';':
-            token.token_type = TokenType::END_STATEMENT;
-            break;
         case '&':
             if (match_keyword("&&", false)) {
                 token.token_type = TokenType::AND;
@@ -284,6 +296,22 @@ Token Lexer::lex_symbol(char first_char) {
     return token;
 }
 
+Token Lexer::lex_string(char next_char) {
+    std::string str = "";
+    next_char = next_character();
+    Token token;
+    while (!LexerUtils::is_double_quote(next_char)) {
+        if (next_char == '\0') {
+            throw std::runtime_error("No closing quote for string");
+        }
+        str += next_char;
+        next_char = next_character();
+    }
+
+    token.token_type = TokenType::VAL_STRING;
+    token.token_value = str;
+    return token;
+}
 //
 //  Read from file and create tokens 
 //
@@ -294,7 +322,7 @@ std::vector<Token> Lexer::tokenize() {
     char next_char = next_character();
     while (next_char != '\0') {
         std::cout << "main loop next char: " << next_char << "\n";
-        if (next_char == ' ') {
+        if (next_char == ' ' || next_char == '\n') {
             next_char = next_character();
             continue;
         }
@@ -309,6 +337,9 @@ std::vector<Token> Lexer::tokenize() {
         }
         else if (LexerUtils::is_special_symbol(next_char)) {
             Token retToken = lex_symbol(next_char);
+            ret.push_back(retToken);
+        } else if (LexerUtils::is_double_quote(next_char)) {
+            Token retToken = lex_string(next_char);
             ret.push_back(retToken);
         }
         else {

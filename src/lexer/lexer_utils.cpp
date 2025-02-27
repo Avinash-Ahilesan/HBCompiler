@@ -21,17 +21,17 @@ bool LexerUtils::is_alphabetical(char c) {
 }
 
 bool LexerUtils::is_underscore(char c) {
-    return true;
+    return c == '_';
 }
 
 bool LexerUtils::is_special_symbol(char c) {
     // couple of special symbols: { | } = ! + - / % ( ) ; & * > <
-    if (c >= 123 || c <= 125 || c == '&') {
+    if (c == '{' || c == '|' || c == '}' || c == '&') {
         // { | & }
         return true;
     }
 
-    if (c == 40 || c == 41) { // ( )
+    if (c == '(' || c == ')') { // ( )
         return true;
     }
 
@@ -44,4 +44,12 @@ bool LexerUtils::is_special_symbol(char c) {
     }
     
     return false;
+}
+
+bool LexerUtils::is_double_quote(char c) {
+    return c == '"';
+}
+
+bool LexerUtils::is_single_quote(char c) {
+    return c == '\'';
 }

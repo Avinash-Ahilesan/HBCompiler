@@ -4,7 +4,7 @@
 class FileHandlerInterface {
     public:
         virtual void open( std::string filename) { };
-        virtual std::istream& read (char* s, std::streamsize n) {};
+        virtual void read (char* s, std::streamsize n) {};
         virtual bool is_open() {};
         virtual std::streamsize gcount() {};
         FileHandlerInterface() {};
@@ -21,8 +21,8 @@ class FileHandler : public FileHandlerInterface {
             f.open(filename);
         }
 
-        std::istream& read(char* s, std::streamsize n) override {
-            return f.read(s, n);
+        void read(char* s, std::streamsize n) override {
+            f.read(s, n);
         }
         bool is_open() override {
             return f.is_open();
@@ -43,7 +43,7 @@ class TestFileHandler : public FileHandlerInterface {
             // no-op
         }
 
-        std::istream& read(char* s, std::streamsize n) override {
+        void read(char* s, std::streamsize n) override {
             source.copy(s, 4096);
         }
 

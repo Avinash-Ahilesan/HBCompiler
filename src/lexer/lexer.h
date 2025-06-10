@@ -1,3 +1,6 @@
+#ifndef LEXER_H
+#define LEXER_H
+
 #include <string>
 #include <vector>
 #include <fstream>
@@ -39,7 +42,9 @@ enum class TokenType {
     AND, OR, NOT, NEGATE,
 
     // LOGICAL CONTROLLERS (is this right wording?)
-    IF, ELSE
+    IF, ELSE,
+
+    END_OF_FILE
 
 };
 
@@ -67,3 +72,5 @@ class Lexer {
         std::streamsize bytes_read; // Bytes read by file scanner
 
 };
+
+#endif

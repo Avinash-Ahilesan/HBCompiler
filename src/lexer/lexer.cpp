@@ -74,12 +74,12 @@ Token Lexer::lex_numerical_value(char first_char) {
         if (next_char == '.') {
             token.token_type = TokenType::VAL_FLOAT;
         }
-        if (next_char == ' ' || LexerUtils::is_special_symbol(next_char)) {
+        else if (next_char == ' ' || LexerUtils::is_special_symbol(next_char)) {
+            rollback();
             std::cout << "Found token: numerical";
             return token;
         }
-
-        if (!LexerUtils::is_digit(next_char)) {
+        else if (!LexerUtils::is_digit(next_char)) {
             throw std::runtime_error("Error: could not lex integer");
         } 
         token.token_value += next_char;

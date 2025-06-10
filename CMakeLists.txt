@@ -4,7 +4,7 @@ project(HBCompiler)
 # GoogleTest requires at least C++14
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(SOURCE_FILES src/main.cpp src/lexer/lexer.cpp src/lexer/lexer_utils.cpp)
+set(SOURCE_FILES src/main.cpp src/lexer/lexer.cpp src/lexer/lexer_utils.cpp src/parser/parser.cpp)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -27,13 +27,24 @@ add_executable(
   tests/lexer_test.cc
 )
 
-target_sources(lexer_test PRIVATE src/lexer/lexer.cpp src/lexer/lexer_utils.cpp)
+add_executable(
+  parser_test
+  tests/parser_test.cc
+)
+
+target_sources(lexer_test PRIVATE src/lexer/lexer.cpp src/lexer/lexer_utils.cpp src/parser/parser.cpp)
+target_sources(parser_test PRIVATE src/lexer/lexer.cpp src/lexer/lexer_utils.cpp src/parser/parser.cpp)
 
 target_link_libraries(
   lexer_test
   GTest::gtest_main
 )
 
+target_link_libraries(
+  parser_test
+  GTest::gtest_main
+)
 
 include(GoogleTest)
 gtest_discover_tests(lexer_test)
+gtest_discover_tests(parser_test)

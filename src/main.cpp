@@ -57,6 +57,28 @@ int main2() {
     std::cout << "PARSED: " << p.parse();
 }
 
+int main3() {
+        // Goal -> Expr -> Term + Term Expr'-> Term + Term empty -> num + num
+    Token num1;
+    Token plus;
+    Token num2;
+    Token eof;
+
+    num1.token_type = TokenType::VAL_INTEGER;
+    plus.token_type = TokenType::PLUS;
+    num2.token_type = TokenType::VAL_INTEGER;
+    eof.token_type = TokenType::END_OF_FILE;
+
+    std::vector<Token> tokens;
+    tokens.push_back(num1);
+    tokens.push_back(plus);
+    tokens.push_back(num2);
+    tokens.push_back(eof);
+    Parser p(tokens);
+
+    p.parse();
+}
+
 int main() {
     // FileHandlerInterface* file_handler = new FileHandler();
     // Lexer l("./input/source.hb", file_handler);

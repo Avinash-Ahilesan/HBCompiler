@@ -16,7 +16,6 @@ bool Parser::parse() {
     // Entry point Goal -> Expr
     this->next_word();
     if (expr()) {
-        this->next_word();
         if (is_one_of(this->curr_word, TokenType::END_OF_FILE)) {
             return true;
         }
@@ -64,7 +63,7 @@ bool Parser::term_prime() {
             return false;
         }
     } 
-    if (is_one_of(this->curr_word, TokenType::PLUS, TokenType::MINUS, TokenType::CLOSE_ROUND_BRACKET)) {
+    if (is_one_of(this->curr_word, TokenType::PLUS, TokenType::MINUS, TokenType::CLOSE_ROUND_BRACKET, TokenType::END_OF_FILE)) {
         // we can eat an epsilon if the term that follows is )
         // FOLLOW(term') = + - )
         return true;
@@ -85,7 +84,7 @@ bool Parser::expr_prime() {
             return false;
         }
     }
-    if (is_one_of(this->curr_word, TokenType::CLOSE_ROUND_BRACKET)) {
+    if (is_one_of(this->curr_word, TokenType::CLOSE_ROUND_BRACKET, TokenType::END_OF_FILE)) {
         return true;
     }
     std::cout << "not an expression prime";
@@ -96,7 +95,10 @@ bool Parser::factor() {
     if (is_one_of(this->curr_word, TokenType::OPEN_ROUND_BRACKET)) {
         this->next_word();
         if (expr())
-            return is_one_of(this->curr_word, TokenType::CLOSE_ROUND_BRACKET);
+            if (is_one_of(this->curr_word, TokenType::CLOSE_ROUND_BRACKET)) {
+                this->next_word();
+                return true;
+            }
         else 
             return false;
     }

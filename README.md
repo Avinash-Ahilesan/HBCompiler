@@ -32,7 +32,8 @@ string myText = "hello"
 # Grammar Rules
 The implementation of my parser uses a top-down recursive descent approach. An LL(1) grammar.
 
-Goal -> Expr
+Goal -> Expr EOF
+     | VariableDecl EOF
 
 Expr -> Term Expr'
 
@@ -48,11 +49,21 @@ Factor -> ( Expr )
         | num
         | name
 
-VariableDecl -> name = Value
+VariableDecl -> Type name = Value
+
+Type -> int
+     | float
+     | char
+     | string
 
 Value -> num
-       | string
        | name 
+       | string
 
-Statement -> IfStatement | WhileStatment | ForStatement
+
+Statement -> IfStatement | WhileStatment
+
+IfStatement -> if (condition) { } else { }
+WhileStatement -> while (condition) { }
+
 

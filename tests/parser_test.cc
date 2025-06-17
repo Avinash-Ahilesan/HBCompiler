@@ -12,6 +12,13 @@ Token multiply = {TokenType::MULTIPLY};
 Token divide = {TokenType::DIVIDE};
 Token eof = {TokenType::END_OF_FILE};
 
+Token type_integer = {TokenType::TYPE_INTEGER};
+Token type_float = {TokenType::TYPE_INTEGER};
+Token type_string = {TokenType::TYPE_INTEGER};
+Token type_char = {TokenType::TYPE_INTEGER};
+
+Token equals = {TokenType::EQUALS};
+
 TEST(ParserTestExpr, BasicAssertions) {
 
     std::vector<Token> tokens = {open_rnd_brkt, num, close_rnd_brkt, eof};
@@ -80,4 +87,12 @@ TEST(MissingBracketOpenClose, BasicAssertions) {
 
     Parser p2(tokens);
     EXPECT_FALSE(p2.parse());
+}
+
+TEST(VariableDeclInteger, BasicAssertions) {
+    std::vector<Token> tokens = {type_integer, name, equals, num, eof};
+
+    Parser p(tokens);
+
+    EXPECT_TRUE(p.parse());
 }

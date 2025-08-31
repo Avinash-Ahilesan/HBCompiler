@@ -46,7 +46,6 @@ void Parser::next_word()
 void Parser::parse()
 {
     // Entry point Goal -> Expr
-    std::cout << "IN PARSE";
     this->next_word();
     if (is_one_of(this->curr_word, TokenType::TYPE_INTEGER))
     {
@@ -75,18 +74,13 @@ void Parser::parse()
 // Expr -> Term Expr'
 std::variant<Factor *, Expr *> Parser::expr()
 {
-    // 5 * 5  
-    std::cout << "IN EXPR";
     auto left = term();
     return expr_prime(left);
-    std::cout << "Not a term";
 }
 
 // Term -> Factor Term'
 std::variant<Factor *, Expr *> Parser::term()
 {
-    std::cout << "IN TERM";
-    // Expr
     auto lhs = factor();
     return term_prime(lhs);
 }
@@ -96,7 +90,6 @@ std::variant<Factor *, Expr *> Parser::term()
 //       -> empty
 std::variant<Factor*, Expr*> Parser::term_prime(std::variant<Factor *, Expr *> lhs)
 {
-    std::cout << "IN TERM'";
     if (is_one_of(this->curr_word, TokenType::MULTIPLY, TokenType::DIVIDE))
     {
         Expr* expr = new Expr();
@@ -110,7 +103,6 @@ std::variant<Factor*, Expr*> Parser::term_prime(std::variant<Factor *, Expr *> l
             expr->op = Operator::DIVIDE;
         }
         this->next_word();
-        std::cout << "next word";
         printTokenType(this->curr_word->token_type);
         std::variant<Factor *, Expr *> rhs = factor();
         expr->rhs = rhs;
@@ -120,7 +112,6 @@ std::variant<Factor*, Expr*> Parser::term_prime(std::variant<Factor *, Expr *> l
     {
         // we can eat an epsilon if the term that follows is )
         // FOLLOW(term') = + - )
-        std::cout << "term': true from follow";
         return lhs;
     }
     throw std::runtime_error("Not a term prime");
@@ -129,7 +120,6 @@ std::variant<Factor*, Expr*> Parser::term_prime(std::variant<Factor *, Expr *> l
 //
 std::variant<Factor *, Expr *> Parser::expr_prime(std::variant<Factor *, Expr *> lhs)
 {
-    std::cout << "IN EXPR'";
     if (is_one_of(this->curr_word, TokenType::PLUS, TokenType::MINUS))
     {
         Expr *expr = new Expr();
@@ -158,16 +148,13 @@ std::variant<Factor *, Expr *> Parser::expr_prime(std::variant<Factor *, Expr *>
 
 std::variant<Factor *, Expr *> Parser::factor()
 {
-    std::cout << "IN FACTOR";
     if (is_one_of(this->curr_word, TokenType::OPEN_ROUND_BRACKET))
     {
         this->next_word();
-        std::cout << "creating expr for factor, brackets detected";
         auto sub_expr = expr();
         if (is_one_of(this->curr_word, TokenType::CLOSE_ROUND_BRACKET))
         {
             this->next_word();
-            std::cout << "returning expr";
             return sub_expr;
         }
         throw std::runtime_error("Unmatched opening bracket");
@@ -178,13 +165,11 @@ std::variant<Factor *, Expr *> Parser::factor()
         Factor *factor = new Factor();
         if (is_one_of(this->curr_word, TokenType::VAL_INTEGER))
         {
-            std::cout << "processing val int";
             Num *num = new Num();
             num->num = std::stoi(this->curr_word->token_value);
             factor->variant = num;
         } 
         else if (is_one_of(this->curr_word, TokenType::IDENTIFIER)) {
-            std::cout << "processing identifier";
             Name *name = new Name();
             name->name = new std::string(this->curr_word->token_value);
             factor->variant = name;

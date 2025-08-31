@@ -1,22 +1,27 @@
 #include <vector>
+#include <variant>
 #include "../lexer/lexer.h"
+#include "../ast/node.h"
 
 class Parser {
 
     public:
         Parser(std::vector<Token> token_list);
-        bool parse();
+        Goal g;
+        void parse();
         bool identifier_and_equals();
+        void printTree();
+        std::string getTreeString();
 
     private:
         int curr_index = -1;
         Token* curr_word;
         void next_word();
-        bool expr();
-        bool expr_prime();
-        bool term();
-        bool term_prime();
-        bool factor();
+        std::variant<Factor*, Expr*> expr();
+        std::variant<Factor*, Expr*> expr_prime(std::variant<Factor*, Expr*> expr);
+        std::variant<Factor*, Expr*>  term();
+        std::variant<Factor*, Expr*> term_prime(std::variant<Factor*, Expr*> expr);
+        std::variant<Factor*, Expr*> factor();
         bool variable_decl();
         template<typename... Args>
         bool is_one_of(Token* t, Args... args) {

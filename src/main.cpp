@@ -44,6 +44,7 @@ int main2() {
 
     open_round.token_type = TokenType::OPEN_ROUND_BRACKET;
     num.token_type = TokenType::VAL_INTEGER;
+    num.token_value = "21";
     close_round.token_type = TokenType::CLOSE_ROUND_BRACKET;
     eof.token_type = TokenType::END_OF_FILE;
 
@@ -54,7 +55,11 @@ int main2() {
     tokens.push_back(eof);
     Parser p(tokens);
 
-    std::cout << "PARSED: " << p.parse();
+    //std::cout << "PARSED: " << p.parse() << "\n";
+    //std::cout << "\n";
+    p.parse();
+    std::cout << "\nPRINTING\n";
+    p.printTree();
 }
 
 int main3() {
@@ -65,8 +70,10 @@ int main3() {
     Token eof;
 
     num1.token_type = TokenType::VAL_INTEGER;
+    num1.token_value = "3";
     plus.token_type = TokenType::PLUS;
     num2.token_type = TokenType::VAL_INTEGER;
+    num2.token_value = "6";
     eof.token_type = TokenType::END_OF_FILE;
 
     std::vector<Token> tokens;
@@ -77,7 +84,34 @@ int main3() {
     Parser p(tokens);
 
     p.parse();
+    p.printTree();
 }
+
+int main4() {
+    Token num = {TokenType::VAL_INTEGER, "5"};
+    Token num_2 = {TokenType::VAL_INTEGER, "12"};
+    Token name = {TokenType::IDENTIFIER, "my_name"};
+    Token open_rnd_brkt = {TokenType::OPEN_ROUND_BRACKET};
+    Token close_rnd_brkt = {TokenType::CLOSE_ROUND_BRACKET};
+    Token add = {TokenType::PLUS};
+    Token subtract = {TokenType::MINUS};
+    Token multiply = {TokenType::MULTIPLY};
+    Token divide = {TokenType::DIVIDE};
+    Token eof = {TokenType::END_OF_FILE};
+
+    Token type_integer = {TokenType::TYPE_INTEGER};
+    Token type_float = {TokenType::TYPE_INTEGER};
+    Token type_string = {TokenType::TYPE_INTEGER};
+    Token type_char = {TokenType::TYPE_INTEGER};
+
+    
+    // std::vector<Token> tokens = {num, multiply, num, eof};
+    std::vector<Token> tokens = {open_rnd_brkt, num, add, name, close_rnd_brkt, multiply, open_rnd_brkt, name, divide, num, close_rnd_brkt, eof};    Parser p1(tokens);
+    p1.parse();
+
+    std::cout << p1.getTreeString();
+}
+
 
 int main() {
     // FileHandlerInterface* file_handler = new FileHandler();
@@ -96,7 +130,8 @@ int main() {
     // std::cout << "NEW FILE \n";
     // printVectorTokens(vectorTokens2);
 
-    main2();
+    //main3();
+    main4();
 }
 
 

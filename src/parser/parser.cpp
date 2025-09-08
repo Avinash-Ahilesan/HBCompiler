@@ -6,32 +6,36 @@ Parser::Parser(std::vector<Token> token_list)
     this->word_list = token_list;
 }
 
-void printTokenType(TokenType token_type)
+std::string getTokenType(TokenType token_type)
 {
     switch (token_type)
     {
-    case TokenType::TYPE_INTEGER:
-        /* code */
-        std::cout << "type integer \n";
-        break;
-    case TokenType::VAL_INTEGER:
-        std::cout << "val integer: \n";
-        break;
-    case TokenType::IDENTIFIER:
-        /* code */
-        std::cout << "identifier: \n";
-        break;
-    case TokenType::EQUALS:
-        /* code */
-        std::cout << "equals \n";
-        break;
-    case TokenType::VAL_STRING:
-        std::cout << "string \n";
-        break;
-    default:
-        std::cout << "other token \n";
-        break;
+        case TokenType::TYPE_INTEGER:
+            /* code */
+            return "type integer \n";
+            break;
+        case TokenType::VAL_INTEGER:
+            return "val integer: \n";
+            break;
+        case TokenType::IDENTIFIER:
+            /* code */
+            return "identifier: \n";
+            break;
+        case TokenType::EQUALS:
+            /* code */
+            return "equals \n";
+            break;
+        case TokenType::VAL_STRING:
+            return "string \n";
+            break;
+        default:
+            return "other token \n";
+            break;
     }
+}
+
+void printTokenType(TokenType token_type) {
+    std::cout << getTokenType(token_type);
 }
 
 void Parser::next_word()
@@ -43,43 +47,52 @@ void Parser::next_word()
     curr_word = &word_list[curr_index];
 }
 
+void Parser::check_eof() {
+    if (!is_one_of(this->curr_word, TokenType::END_OF_FILE)) {
+        throw std::runtime_error("Last character is not end of file");
+    }
+}
+
+template <typename ToVariant, typename FromVariant>
+ToVariant ConvertVariant(const FromVariant& from) {
+    ToVariant to = std::visit([](auto&& arg) -> ToVariant {return arg ; }, from);
+    return to;
+}
+
 void Parser::parse()
 {
     // Entry point Goal -> Expr
     this->next_word();
-    if (is_one_of(this->curr_word, TokenType::TYPE_INTEGER))
+    if (is_one_of(this->curr_word, TokenType::TYPE_INTEGER, TokenType::TYPE_CHAR, TokenType::TYPE_FLOAT, TokenType::TYPE_STRING))
     {
-        if (variable_decl())
-        {
-            if (!is_one_of(this->curr_word, TokenType::END_OF_FILE))
-            {
-                throw std::runtime_error("Last character is not end of file");
-            }
-        }
+        auto var_decl = variable_decl();
+        check_eof();
+        Statement s{
+            var_decl
+        };
+        g.statement_list.push_back(s);
         return;
     }
     else
     {
-        auto e = expr();
-        if (!is_one_of(this->curr_word, TokenType::END_OF_FILE))
-        {
-            throw std::runtime_error("Last character is not end of file");
-        }
-        g.expr = e;
-        return;
+        auto expression = expr();
+        check_eof();
+        Statement s {
+            ConvertVariant<decltype(s.statement), decltype(expression)>(expression)
+        };
+        g.statement_list.push_back(s);
     }
-    throw std::runtime_error("Not an expression");
 }
 
 // Expr -> Term Expr'
-std::variant<Factor *, Expr *> Parser::expr()
+std::variant<Factor, std::shared_ptr<Expr>> Parser::expr()
 {
     auto left = term();
     return expr_prime(left);
 }
 
 // Term -> Factor Term'
-std::variant<Factor *, Expr *> Parser::term()
+std::variant<Factor, std::shared_ptr<Expr>> Parser::term()
 {
     auto lhs = factor();
     return term_prime(lhs);
@@ -88,11 +101,11 @@ std::variant<Factor *, Expr *> Parser::term()
 // Term' -> x Factor Term'
 //       -> / Factor Term'
 //       -> empty
-std::variant<Factor*, Expr*> Parser::term_prime(std::variant<Factor *, Expr *> lhs)
+std::variant<Factor, std::shared_ptr<Expr>> Parser::term_prime(std::variant<Factor, std::shared_ptr<Expr>> lhs)
 {
     if (is_one_of(this->curr_word, TokenType::MULTIPLY, TokenType::DIVIDE))
     {
-        Expr* expr = new Expr();
+        std::shared_ptr<Expr> expr(new Expr);
         expr->lhs = lhs;
         if (is_one_of(this->curr_word, TokenType::MULTIPLY))
         {
@@ -104,7 +117,7 @@ std::variant<Factor*, Expr*> Parser::term_prime(std::variant<Factor *, Expr *> l
         }
         this->next_word();
         printTokenType(this->curr_word->token_type);
-        std::variant<Factor *, Expr *> rhs = factor();
+        std::variant<Factor , std::shared_ptr<Expr>> rhs = factor();
         expr->rhs = rhs;
         return term_prime(expr);
     }
@@ -118,11 +131,11 @@ std::variant<Factor*, Expr*> Parser::term_prime(std::variant<Factor *, Expr *> l
 }
 
 //
-std::variant<Factor *, Expr *> Parser::expr_prime(std::variant<Factor *, Expr *> lhs)
+std::variant<Factor, std::shared_ptr<Expr>> Parser::expr_prime(std::variant<Factor, std::shared_ptr<Expr>> lhs)
 {
     if (is_one_of(this->curr_word, TokenType::PLUS, TokenType::MINUS))
     {
-        Expr *expr = new Expr();
+        std::shared_ptr<Expr> expr(new Expr);
         expr->lhs = lhs;
         if (is_one_of(this->curr_word, TokenType::PLUS))
         {
@@ -135,7 +148,7 @@ std::variant<Factor *, Expr *> Parser::expr_prime(std::variant<Factor *, Expr *>
 
         this->next_word();
 
-        std::variant<Factor *, Expr *> rhs = term();
+        std::variant<Factor, std::shared_ptr<Expr>> rhs = term();
         expr->rhs = rhs;
         return expr_prime(expr);
     }
@@ -146,7 +159,7 @@ std::variant<Factor *, Expr *> Parser::expr_prime(std::variant<Factor *, Expr *>
     throw std::runtime_error("not an expression prime");
 }
 
-std::variant<Factor *, Expr *> Parser::factor()
+std::variant<Factor, std::shared_ptr<Expr>> Parser::factor()
 {
     if (is_one_of(this->curr_word, TokenType::OPEN_ROUND_BRACKET))
     {
@@ -162,17 +175,17 @@ std::variant<Factor *, Expr *> Parser::factor()
     else if (is_one_of(this->curr_word, TokenType::VAL_INTEGER, TokenType::IDENTIFIER))
     {
         // create correct node type
-        Factor *factor = new Factor();
+        Factor factor;
         if (is_one_of(this->curr_word, TokenType::VAL_INTEGER))
         {
-            Num *num = new Num();
-            num->num = std::stoi(this->curr_word->token_value);
-            factor->variant = num;
+            Num num;
+            num.num = std::stoi(this->curr_word->token_value);
+            factor.variant = num;
         } 
         else if (is_one_of(this->curr_word, TokenType::IDENTIFIER)) {
-            Name *name = new Name();
-            name->name = new std::string(this->curr_word->token_value);
-            factor->variant = name;
+            Name name;
+            name.name =  this->curr_word->token_value;
+            factor.variant = name;
         }
         this->next_word();
         return factor;
@@ -180,91 +193,66 @@ std::variant<Factor *, Expr *> Parser::factor()
     throw std::runtime_error("Not a factor");
 }
 
-bool Parser::identifier_and_equals()
+std::string Parser::identifier_and_equals()
 {
     this->next_word();
+    std::string ident_name;
     if (is_one_of(this->curr_word, TokenType::IDENTIFIER))
     {
+        ident_name = this->curr_word->token_value;
         this->next_word();
         if (is_one_of(this->curr_word, TokenType::EQUALS))
         {
-            return true;
-        }
-        else
-        {
-            std::cout << "expecting equals, found something else";
+            return ident_name;
         }
     }
-    else
-    {
-        std::cout << "expecting identifier, found something else: ";
-        printTokenType(this->curr_word->token_type);
-    }
-
-    return false;
+    throw std::runtime_error("expecting identifier, instead found: " + getTokenType(this->curr_word->token_type));
 }
 
-bool Parser::variable_decl()
+VariableDeclaration Parser::variable_decl()
 {
+    VariableDeclaration variable_decl;
     if (is_one_of(this->curr_word, TokenType::TYPE_INTEGER))
     {
-        if (identifier_and_equals())
+        std::string variable_identifier = identifier_and_equals();
+
+        variable_decl.var_type = VariableType::INTEGER;
+        variable_decl.name = variable_identifier;
+        this->next_word();
+        if (is_one_of(this->curr_word, TokenType::VAL_INTEGER))
         {
+            variable_decl.value = std::stoi(this->curr_word->token_value);
             this->next_word();
-            if (is_one_of(this->curr_word, TokenType::VAL_INTEGER))
-            {
-                return true;
-            }
-            else
-            {
-                std::cout << "TYPE MISMATCH: INT ASSIGNMENT MISMATCH";
-            }
+            return variable_decl;       
+        } else if (is_one_of(this->curr_word, TokenType::IDENTIFIER)) {
+            Name name;
+            name.name = this->curr_word->token_value;
+            variable_decl.value = name;
+            this->next_word();
+            return variable_decl;
         }
+        throw std::runtime_error("TYPE MISMATCH: INT ASSIGNMENT MISMATCH");
     }
     else if (is_one_of(this->curr_word, TokenType::TYPE_STRING))
     {
-        if (identifier_and_equals())
+        std::string variable_identifier = identifier_and_equals();
+
+        variable_decl.var_type = VariableType::STRING;
+        variable_decl.name = variable_identifier;
+        this->next_word();
+        if (is_one_of(this->curr_word, TokenType::VAL_STRING)) 
         {
+            variable_decl.value = this->curr_word->token_value;
             this->next_word();
-            if (is_one_of(this->curr_word, TokenType::VAL_STRING))
-            {
-                return true;
-            }
-            else
-            {
-                std::cout << "TYPE MISMATCH: INT ASSIGNMENT MISMATCH";
-            }
-        }
-    }
-    else if (is_one_of(this->curr_word, TokenType::TYPE_CHAR))
-    {
-        if (identifier_and_equals())
-        {
+            return variable_decl;
+        } else if (is_one_of(this->curr_word, TokenType::IDENTIFIER)) {
+            Name name;
+            name.name = this->curr_word->token_value;
+            variable_decl.value = name;
             this->next_word();
-            if (is_one_of(this->curr_word, TokenType::VAL_CHAR))
-            {
-                return true;
-            }
-            else
-            {
-                std::cout << "TYPE MISMATCH: INT ASSIGNMENT MISMATCH";
-            }
+            return variable_decl;
         }
-    }
-    else if (is_one_of(this->curr_word, TokenType::TYPE_FLOAT))
-    {
-        if (identifier_and_equals())
-        {
-            this->next_word();
-            if (is_one_of(this->curr_word, TokenType::VAL_FLOAT))
-            {
-                return true;
-            }
-            else
-            {
-                std::cout << "TYPE MISMATCH: INT ASSIGNMENT MISMATCH";
-            }
-        }
+        throw std::runtime_error("TYPE MISMATCH: STRING ASSIGNMENT MISMATCH");
     }
 }
 
@@ -276,21 +264,13 @@ struct Overload : Ts...
 template <class... Ts>
 Overload(Ts...) -> Overload<Ts...>;
 
-struct Visitor
-{
-    void operator()(Expr *e)
-    {
-    }
-
-    void operator()(Factor *f)
-    {
-    }
-};
-
 std::string Parser::getTreeString()
 {
 
-    std::function<std::string(std::variant<Factor *, Expr *>)> expr_to_string;
+    std::function<std::string(std::vector<Statement>)> goal_to_string;
+    std::function<std::string(std::variant<Factor, std::shared_ptr<Expr>, VariableDeclaration, IfStatement, WhileStatement>)> statement_to_string;
+
+    std::function<std::string(std::variant<Factor, std::shared_ptr<Expr>>)> expr_to_string;
 
     std::function<std::string(Operator)> op_to_string;
 
@@ -306,39 +286,93 @@ std::string Parser::getTreeString()
 
     factor_to_string = [&](FactorVariant factor) -> std::string
     {
-        return std::visit(Overload{[&](Name *e) -> std::string
+        return std::visit(Overload{[&](Name e) -> std::string
                             {
-                                return *e->name;
+                                return e.name;
                             },
-                            [&](Num *f) -> std::string
+                            [&](Num f) -> std::string
                             {
-                                return std::to_string(f->num);
+                                return std::to_string(f.num);
                             }},
                    factor);
     };
 
-    expr_to_string = [&](std::variant<Factor *, Expr *> node) -> std::string
+    
+    std::function<std::string(VariableDeclaration)> variable_decl_to_string = [&](VariableDeclaration node) -> std::string {
+        return std::visit(
+            Overload{[&](int i) -> std::string
+                {
+                    return std::to_string(i);
+                },
+                [&](std::string str) -> std::string
+                {
+                    return "\"" + str + "\"";
+                },
+                [&](Name n) -> std::string
+                {
+                    return n.name;
+                }, 
+            }
+            , 
+            node.value
+        );
+    };
+
+    statement_to_string = [&](std::variant<Factor, std::shared_ptr<Expr>, VariableDeclaration, IfStatement, WhileStatement> node) -> std::string
     {
-        return std::visit(Overload{[&](Expr *e) -> std::string
+        return std::visit(Overload{[&](std::shared_ptr<Expr> e) -> std::string
+                            {
+                                return expr_to_string(e);
+                            },
+                            [&](Factor f) -> std::string
+                            {
+                                return expr_to_string(f);
+                            },
+                            [&](VariableDeclaration d) -> std::string
+                            {
+                                return "(decl " + d.name + " " + variable_decl_to_string(d) + ")";
+                            },
+                            [&](IfStatement d) -> std::string
+                            {
+                                return "test";
+                            },
+                            [&](WhileStatement d) -> std::string
+                            {
+                                return "test2";
+                            }  
+                        },
+                   node);
+    };
+
+    expr_to_string = [&](std::variant<Factor, std::shared_ptr<Expr>> node) -> std::string
+    {
+        return std::visit(Overload{[&](std::shared_ptr<Expr> e) -> std::string
                             {
                                 std::cout << "EXPR TO STRING";
                                 std::string lhs = expr_to_string(e->lhs);
                                 std::string rhs = expr_to_string(e->rhs);
                                 return "(" + op_to_string(e->op) + " " + lhs + " " + rhs + ")";
                             },
-                            [&](Factor *f) -> std::string
+                            [&](Factor f) -> std::string
                             {
                                 std::cout << "FACTOR TO STRING";
-                                if (f != NULL) {
-                                    return factor_to_string(f->variant);
-                                }
+                                return factor_to_string(f.variant);
                                 return "F";
                             }},
                    node);
     };
 
+    goal_to_string = [&](std::vector<Statement> statement_list) -> std::string
+    {
+        std::string strs;
+        for (Statement stmt: statement_list) {
+            strs += statement_to_string(stmt.statement);
+        }
+        return strs;
+    };
+
     std::cout << "TO STRING";
-    return expr_to_string(g.expr);
+    return goal_to_string(g.statement_list);
 }
 
 void Parser::printTree()

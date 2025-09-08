@@ -9,7 +9,7 @@ class Parser {
         Parser(std::vector<Token> token_list);
         Goal g;
         void parse();
-        bool identifier_and_equals();
+        std::string identifier_and_equals();
         void printTree();
         std::string getTreeString();
 
@@ -17,12 +17,13 @@ class Parser {
         int curr_index = -1;
         Token* curr_word;
         void next_word();
-        std::variant<Factor*, Expr*> expr();
-        std::variant<Factor*, Expr*> expr_prime(std::variant<Factor*, Expr*> expr);
-        std::variant<Factor*, Expr*>  term();
-        std::variant<Factor*, Expr*> term_prime(std::variant<Factor*, Expr*> expr);
-        std::variant<Factor*, Expr*> factor();
-        bool variable_decl();
+        std::variant<Factor, std::shared_ptr<Expr>> expr();
+        std::variant<Factor, std::shared_ptr<Expr>> expr_prime(std::variant<Factor, std::shared_ptr<Expr>> expr);
+        std::variant<Factor, std::shared_ptr<Expr>>  term();
+        std::variant<Factor, std::shared_ptr<Expr>> term_prime(std::variant<Factor, std::shared_ptr<Expr>> expr);
+        std::variant<Factor, std::shared_ptr<Expr>> factor();
+        void check_eof();
+        VariableDeclaration variable_decl();
         template<typename... Args>
         bool is_one_of(Token* t, Args... args) {
             for (TokenType token_type : {args...}) {

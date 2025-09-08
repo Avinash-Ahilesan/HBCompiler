@@ -7,8 +7,6 @@
 #include <fstream>
 
 
-
-
 /*
     Input: None
     Output: Returns next character in buffer. returns \0 if at end of file

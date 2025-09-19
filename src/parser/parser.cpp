@@ -73,8 +73,15 @@ void Parser::parse()
         g.statement_list.push_back(s);
         return;
     }
-    else
-    {
+    else if (is_one_of(this->curr_word, TokenType::IF)) {
+        // if statement
+        IfStatement if_statemnt = if_statement();
+        Statement s {
+            if_statemnt
+        };
+        g.statement_list.push_back(s);
+    }
+    else {
         auto expression = expr();
         check_eof();
         Statement s {
@@ -83,6 +90,73 @@ void Parser::parse()
         g.statement_list.push_back(s);
     }
 }
+
+std::shared_ptr<Statement> Parser::statement() {
+    std::shared_ptr<Statement> statement(new Statement);
+    return statement;
+    // TODO: write this
+}
+
+Comparator Parser::comparator() {
+   if (is_one_of(this->curr_word, TokenType::EQUALS)) {
+        this->next_word();
+        return Comparator::EQUALS;
+   } else if (is_one_of(this->curr_word, TokenType::GREATER_THAN)) {
+        this->next_word();
+        return Comparator::GREATER_THAN;
+   } else if (is_one_of(this->curr_word, TokenType::LESS_THAN)) {
+        this->next_word();
+        return Comparator::LESS_THAN;
+   }
+}
+
+Condition Parser::condition() {
+    Condition condition;
+    std::variant<Factor, std::shared_ptr<Expr>> l_side = expr();
+    Comparator comp = comparator();
+    std::variant<Factor, std::shared_ptr<Expr>> r_side = expr();
+    
+    condition.l_value = l_side;
+    condition.comparator = comp;
+    condition.r_value = r_side;
+    return condition;
+}
+
+
+// IfStatement -> if (Condition) { Statement }
+//             | if (Condition) { Statement } else { Statement }
+IfStatement Parser::if_statement() {
+    IfStatement if_statement;
+    this->next_word();
+    if (is_one_of(this->curr_word, TokenType::OPEN_ROUND_BRACKET)) {
+        this->next_word();
+        if_statement.condition = condition();
+        if (is_one_of(this->curr_word, TokenType::CLOSE_ROUND_BRACKET)) {
+            this->next_word();
+            if (is_one_of(this->curr_word, TokenType::OPEN_CURLY_BRACKET)) {
+                this->next_word();
+                if_statement.then_statement = statement();
+            } else {
+                throw std::runtime_error("Missing open curly bracket");
+            }
+
+            if (is_one_of(this->curr_word, TokenType::CLOSE_CURLY_BRACKET)) {
+                this->next_word();
+                if (is_one_of(this->curr_word, TokenType::ELSE)) {
+                    // TODO: do else part
+                } else {
+                    return if_statement;
+                }
+            } else {
+                throw std::runtime_error("Missing close curly bracket");
+            }
+            throw std::runtime_error("DONE");
+        }
+        return if_statement;
+    }
+    throw std::runtime_error("Missing open bracket");
+}
+
 
 // Expr -> Term Expr'
 std::variant<Factor, std::shared_ptr<Expr>> Parser::expr()
@@ -127,6 +201,10 @@ std::variant<Factor, std::shared_ptr<Expr>> Parser::term_prime(std::variant<Fact
         // FOLLOW(term') = + - )
         return lhs;
     }
+
+    if (is_one_of(this->curr_word, TokenType::GREATER_THAN, TokenType::LESS_THAN, TokenType::EQUALS)) {
+        return lhs;
+    }
     throw std::runtime_error("Not a term prime");
 }
 
@@ -154,6 +232,10 @@ std::variant<Factor, std::shared_ptr<Expr>> Parser::expr_prime(std::variant<Fact
     }
     if (is_one_of(this->curr_word, TokenType::CLOSE_ROUND_BRACKET, TokenType::END_OF_FILE))
     {
+        return lhs;
+    }
+
+    if (is_one_of(this->curr_word, TokenType::GREATER_THAN, TokenType::LESS_THAN, TokenType::EQUALS)) {
         return lhs;
     }
     throw std::runtime_error("not an expression prime");
@@ -201,7 +283,7 @@ std::string Parser::identifier_and_equals()
     {
         ident_name = this->curr_word->token_value;
         this->next_word();
-        if (is_one_of(this->curr_word, TokenType::EQUALS))
+        if (is_one_of(this->curr_word, TokenType::ASSIGNMENT))
         {
             return ident_name;
         }
@@ -274,6 +356,10 @@ std::string Parser::getTreeString()
 
     std::function<std::string(Operator)> op_to_string;
 
+    std::function<std::string(IfStatement)> if_statement_to_string;
+
+    std::function<std::string(Condition condition)> condition_to_string;
+
     op_to_string = [&](Operator op) -> std::string {
         if (op == Operator::ADD) return "+";
         if (op == Operator::DIVIDE) return "/";
@@ -318,6 +404,23 @@ std::string Parser::getTreeString()
         );
     };
 
+    condition_to_string = [&](Condition node) -> std::string {
+        return "condition";
+    };
+
+
+    if_statement_to_string = [&](IfStatement node) -> std::string {
+        std::string ret =  "(if " + condition_to_string(node.condition) + " ";
+        
+        if (node.then_statement)
+            ret += statement_to_string(node.then_statement->statement);
+        
+        if (node.else_statement)
+            ret += statement_to_string(node.else_statement->statement);
+
+        return ret + ")";
+    };
+
     statement_to_string = [&](std::variant<Factor, std::shared_ptr<Expr>, VariableDeclaration, IfStatement, WhileStatement> node) -> std::string
     {
         return std::visit(Overload{[&](std::shared_ptr<Expr> e) -> std::string
@@ -334,7 +437,7 @@ std::string Parser::getTreeString()
                             },
                             [&](IfStatement d) -> std::string
                             {
-                                return "test";
+                                return if_statement_to_string(d);
                             },
                             [&](WhileStatement d) -> std::string
                             {
@@ -357,7 +460,6 @@ std::string Parser::getTreeString()
                             {
                                 std::cout << "FACTOR TO STRING";
                                 return factor_to_string(f.variant);
-                                return "F";
                             }},
                    node);
     };

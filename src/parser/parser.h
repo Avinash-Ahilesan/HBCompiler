@@ -22,6 +22,10 @@ class Parser {
         std::variant<Factor, std::shared_ptr<Expr>>  term();
         std::variant<Factor, std::shared_ptr<Expr>> term_prime(std::variant<Factor, std::shared_ptr<Expr>> expr);
         std::variant<Factor, std::shared_ptr<Expr>> factor();
+        Comparator comparator();
+        Condition condition();
+        std::shared_ptr<Statement> statement();
+        IfStatement if_statement();
         void check_eof();
         VariableDeclaration variable_decl();
         template<typename... Args>

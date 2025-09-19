@@ -18,6 +18,11 @@ enum VariableType {
     INTEGER, STRING, FLOAT, CHAR
 };
 
+enum Comparator {
+    GREATER_THAN, LESS_THAN, GREATER_THAN_EQUALS, LESS_THAN_EQUALS, EQUALS, NOT_EQUALS,
+    NOT, AND, OR
+};
+
 using FactorVariant = std::variant<Name, Num>;
 struct Factor {
     // either ()
@@ -37,12 +42,24 @@ struct VariableDeclaration {
     std::variant<int, std::string, Name> value;
 };
 
-struct IfStatement {
+struct Condition {
+    enum Comparator comparator;
+    std::variant<Factor, std::shared_ptr<Expr>> l_value;
+    std::variant<Factor, std::shared_ptr<Expr>> r_value; // TODO: model ! with one value
+};
 
+struct Statement;
+
+struct IfStatement {
+    Condition condition;
+    std::shared_ptr<Statement> then_statement;
+    std::shared_ptr<Statement> else_statement;
 };
 
 struct WhileStatement {
-
+    Condition condition;
+    std::shared_ptr<Statement> then_statement;
+    std::shared_ptr<Statement> else_statement;
 };
 
 struct Statement {

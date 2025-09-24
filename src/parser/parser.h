@@ -24,7 +24,7 @@ class Parser {
         std::variant<Factor, std::shared_ptr<Expr>> factor();
         Comparator comparator();
         Condition condition();
-        std::shared_ptr<Statement> statement();
+        std::vector<std::shared_ptr<Statement>> statement();
         IfStatement if_statement();
         void check_eof();
         VariableDeclaration variable_decl();

@@ -62,39 +62,36 @@ ToVariant ConvertVariant(const FromVariant& from) {
 void Parser::parse()
 {
     // Entry point Goal -> Expr
+    g.statement_list = statement();
+    check_eof();
+}
+
+std::vector<std::shared_ptr<Statement>> Parser::statement() {
+    std::vector<std::shared_ptr<Statement>> statement_list;
+    std::shared_ptr<Statement> statement(new Statement);
+    
     this->next_word();
     if (is_one_of(this->curr_word, TokenType::TYPE_INTEGER, TokenType::TYPE_CHAR, TokenType::TYPE_FLOAT, TokenType::TYPE_STRING))
     {
         auto var_decl = variable_decl();
-        check_eof();
-        Statement s{
-            var_decl
-        };
-        g.statement_list.push_back(s);
-        return;
+        std::shared_ptr<Statement> statement(new Statement);
+        statement->statement = var_decl;
+        statement_list.push_back(statement);
     }
     else if (is_one_of(this->curr_word, TokenType::IF)) {
         // if statement
         IfStatement if_statemnt = if_statement();
-        Statement s {
-            if_statemnt
-        };
-        g.statement_list.push_back(s);
+        std::shared_ptr<Statement> statement(new Statement);
+        statement->statement = if_statemnt;
+        statement_list.push_back(statement);
     }
     else {
         auto expression = expr();
-        check_eof();
-        Statement s {
-            ConvertVariant<decltype(s.statement), decltype(expression)>(expression)
-        };
-        g.statement_list.push_back(s);
+        std::shared_ptr<Statement> statement(new Statement);
+        statement->statement = ConvertVariant<decltype(statement->statement), decltype(expression)>(expression);
+        statement_list.push_back(statement);
     }
-}
-
-std::shared_ptr<Statement> Parser::statement() {
-    std::shared_ptr<Statement> statement(new Statement);
-    return statement;
-    // TODO: write this
+    return statement_list;
 }
 
 Comparator Parser::comparator() {
@@ -134,7 +131,6 @@ IfStatement Parser::if_statement() {
         if (is_one_of(this->curr_word, TokenType::CLOSE_ROUND_BRACKET)) {
             this->next_word();
             if (is_one_of(this->curr_word, TokenType::OPEN_CURLY_BRACKET)) {
-                this->next_word();
                 if_statement.then_statement = statement();
             } else {
                 throw std::runtime_error("Missing open curly bracket");
@@ -195,7 +191,7 @@ std::variant<Factor, std::shared_ptr<Expr>> Parser::term_prime(std::variant<Fact
         expr->rhs = rhs;
         return term_prime(expr);
     }
-    if (is_one_of(this->curr_word, TokenType::PLUS, TokenType::MINUS, TokenType::CLOSE_ROUND_BRACKET, TokenType::END_OF_FILE))
+    if (is_one_of(this->curr_word, TokenType::PLUS, TokenType::MINUS, TokenType::CLOSE_ROUND_BRACKET, TokenType::CLOSE_CURLY_BRACKET, TokenType::END_OF_FILE))
     {
         // we can eat an epsilon if the term that follows is )
         // FOLLOW(term') = + - )
@@ -230,7 +226,7 @@ std::variant<Factor, std::shared_ptr<Expr>> Parser::expr_prime(std::variant<Fact
         expr->rhs = rhs;
         return expr_prime(expr);
     }
-    if (is_one_of(this->curr_word, TokenType::CLOSE_ROUND_BRACKET, TokenType::END_OF_FILE))
+    if (is_one_of(this->curr_word, TokenType::CLOSE_ROUND_BRACKET, TokenType::CLOSE_CURLY_BRACKET, TokenType::END_OF_FILE))
     {
         return lhs;
     }
@@ -349,7 +345,7 @@ Overload(Ts...) -> Overload<Ts...>;
 std::string Parser::getTreeString()
 {
 
-    std::function<std::string(std::vector<Statement>)> goal_to_string;
+    std::function<std::string(std::vector<std::shared_ptr<Statement>>)> goal_to_string;
     std::function<std::string(std::variant<Factor, std::shared_ptr<Expr>, VariableDeclaration, IfStatement, WhileStatement>)> statement_to_string;
 
     std::function<std::string(std::variant<Factor, std::shared_ptr<Expr>>)> expr_to_string;
@@ -359,6 +355,8 @@ std::string Parser::getTreeString()
     std::function<std::string(IfStatement)> if_statement_to_string;
 
     std::function<std::string(Condition condition)> condition_to_string;
+
+    std::function<std::string(Comparator comparator)> comparator_to_string;
 
     op_to_string = [&](Operator op) -> std::string {
         if (op == Operator::ADD) return "+";
@@ -404,19 +402,35 @@ std::string Parser::getTreeString()
         );
     };
 
+
+    comparator_to_string = [&](Comparator node) -> std::string {
+        switch(node) {
+            case Comparator::AND:
+                return "&&";
+                break;
+            case Comparator::LESS_THAN:
+                return "<";
+                break;
+            case Comparator::GREATER_THAN:
+                return ">";
+                break;
+        }
+    };
+
     condition_to_string = [&](Condition node) -> std::string {
-        return "condition";
+        std::string condition_str = "(";
+        condition_str += expr_to_string(node.l_value);
+        condition_str += comparator_to_string(node.comparator);
+        condition_str += expr_to_string(node.r_value);
+        return condition_str + ")";
     };
 
 
     if_statement_to_string = [&](IfStatement node) -> std::string {
         std::string ret =  "(if " + condition_to_string(node.condition) + " ";
         
-        if (node.then_statement)
-            ret += statement_to_string(node.then_statement->statement);
-        
-        if (node.else_statement)
-            ret += statement_to_string(node.else_statement->statement);
+        ret += goal_to_string(node.then_statement);
+        ret += goal_to_string(node.else_statement);
 
         return ret + ")";
     };
@@ -464,11 +478,11 @@ std::string Parser::getTreeString()
                    node);
     };
 
-    goal_to_string = [&](std::vector<Statement> statement_list) -> std::string
+    goal_to_string = [&](std::vector<std::shared_ptr<Statement>> statement_list) -> std::string
     {
         std::string strs;
-        for (Statement stmt: statement_list) {
-            strs += statement_to_string(stmt.statement);
+        for (std::shared_ptr<Statement> stmt: statement_list) {
+            strs += statement_to_string(stmt->statement);
         }
         return strs;
     };

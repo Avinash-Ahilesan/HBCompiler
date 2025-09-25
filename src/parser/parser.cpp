@@ -28,6 +28,12 @@ std::string getTokenType(TokenType token_type)
         case TokenType::VAL_STRING:
             return "string \n";
             break;
+        case TokenType::CLOSE_CURLY_BRACKET:
+            return "close-curly";
+            break;
+        case TokenType::ASSIGNMENT:
+            return "assign";
+            break;
         default:
             return "other token \n";
             break;
@@ -63,6 +69,9 @@ void Parser::parse()
 {
     // Entry point Goal -> Expr
     g.statement_list = statement();
+    if (is_one_of(this->curr_word, TokenType::CLOSE_CURLY_BRACKET)) {
+        printTokenType(this->curr_word->token_type);
+    }
     check_eof();
 }
 
@@ -70,27 +79,31 @@ std::vector<std::shared_ptr<Statement>> Parser::statement() {
     std::vector<std::shared_ptr<Statement>> statement_list;
     std::shared_ptr<Statement> statement(new Statement);
     
+
     this->next_word();
-    if (is_one_of(this->curr_word, TokenType::TYPE_INTEGER, TokenType::TYPE_CHAR, TokenType::TYPE_FLOAT, TokenType::TYPE_STRING))
-    {
-        auto var_decl = variable_decl();
-        std::shared_ptr<Statement> statement(new Statement);
-        statement->statement = var_decl;
-        statement_list.push_back(statement);
+    while (!is_one_of(this->curr_word, TokenType::CLOSE_CURLY_BRACKET, TokenType::END_OF_FILE)) {
+        if (is_one_of(this->curr_word, TokenType::TYPE_INTEGER, TokenType::TYPE_CHAR, TokenType::TYPE_FLOAT, TokenType::TYPE_STRING))
+        {
+            auto var_decl = variable_decl();
+            std::shared_ptr<Statement> statement(new Statement);
+            statement->statement = var_decl;
+            statement_list.push_back(statement);
+        }
+        else if (is_one_of(this->curr_word, TokenType::IF)) {
+            // if statement
+            IfStatement if_statemnt = if_statement();
+            std::shared_ptr<Statement> statement(new Statement);
+            statement->statement = if_statemnt;
+            statement_list.push_back(statement);
+        }
+        else {
+            auto expression = expr();
+            std::shared_ptr<Statement> statement(new Statement);
+            statement->statement = ConvertVariant<decltype(statement->statement), decltype(expression)>(expression);
+            statement_list.push_back(statement);
+        }
     }
-    else if (is_one_of(this->curr_word, TokenType::IF)) {
-        // if statement
-        IfStatement if_statemnt = if_statement();
-        std::shared_ptr<Statement> statement(new Statement);
-        statement->statement = if_statemnt;
-        statement_list.push_back(statement);
-    }
-    else {
-        auto expression = expr();
-        std::shared_ptr<Statement> statement(new Statement);
-        statement->statement = ConvertVariant<decltype(statement->statement), decltype(expression)>(expression);
-        statement_list.push_back(statement);
-    }
+    
     return statement_list;
 }
 
@@ -135,14 +148,23 @@ IfStatement Parser::if_statement() {
             } else {
                 throw std::runtime_error("Missing open curly bracket");
             }
-
             if (is_one_of(this->curr_word, TokenType::CLOSE_CURLY_BRACKET)) {
                 this->next_word();
                 if (is_one_of(this->curr_word, TokenType::ELSE)) {
-                    // TODO: do else part
-                } else {
-                    return if_statement;
+                    this->next_word();
+                    if (is_one_of(this->curr_word, TokenType::OPEN_CURLY_BRACKET)) {
+                        if_statement.else_statement = statement();
+                        if (is_one_of(this->curr_word, TokenType::CLOSE_CURLY_BRACKET)) {
+                            std::cout << "Close curly found";
+                            this->next_word();
+                        } else {
+                            throw std::runtime_error("ERROR");
+                        }
+                    } else {
+                        throw std::runtime_error("MISSING OPEN CURLY BRACKET");
+                    }
                 }
+                return if_statement;
             } else {
                 throw std::runtime_error("Missing close curly bracket");
             }
@@ -198,10 +220,14 @@ std::variant<Factor, std::shared_ptr<Expr>> Parser::term_prime(std::variant<Fact
         return lhs;
     }
 
+    if (is_one_of(this->curr_word, TokenType::TYPE_INTEGER, TokenType::TYPE_STRING, TokenType::IDENTIFIER)) {
+        return lhs;
+    }
+
     if (is_one_of(this->curr_word, TokenType::GREATER_THAN, TokenType::LESS_THAN, TokenType::EQUALS)) {
         return lhs;
     }
-    throw std::runtime_error("Not a term prime");
+    throw std::runtime_error("Not a term prime: " + getTokenType(this->curr_word->token_type));
 }
 
 //
@@ -231,10 +257,14 @@ std::variant<Factor, std::shared_ptr<Expr>> Parser::expr_prime(std::variant<Fact
         return lhs;
     }
 
+    if (is_one_of(this->curr_word, TokenType::TYPE_INTEGER, TokenType::TYPE_STRING, TokenType::IDENTIFIER)) {
+        return lhs;
+    }
+
     if (is_one_of(this->curr_word, TokenType::GREATER_THAN, TokenType::LESS_THAN, TokenType::EQUALS)) {
         return lhs;
     }
-    throw std::runtime_error("not an expression prime");
+    throw std::runtime_error("not an expression prime: found " + getTokenType(this->curr_word->token_type));
 }
 
 std::variant<Factor, std::shared_ptr<Expr>> Parser::factor()
@@ -429,8 +459,8 @@ std::string Parser::getTreeString()
     if_statement_to_string = [&](IfStatement node) -> std::string {
         std::string ret =  "(if " + condition_to_string(node.condition) + " ";
         
-        ret += goal_to_string(node.then_statement);
-        ret += goal_to_string(node.else_statement);
+        ret += "(" + goal_to_string(node.then_statement) + ")";
+        ret += "(" + goal_to_string(node.else_statement) + ")";
 
         return ret + ")";
     };

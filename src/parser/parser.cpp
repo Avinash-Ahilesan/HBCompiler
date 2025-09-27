@@ -75,9 +75,8 @@ void Parser::parse()
     check_eof();
 }
 
-std::vector<std::shared_ptr<Statement>> Parser::statement() {
-    std::vector<std::shared_ptr<Statement>> statement_list;
-    std::shared_ptr<Statement> statement(new Statement);
+std::vector<std::unique_ptr<Statement>> Parser::statement() {
+    std::vector<std::unique_ptr<Statement>> statement_list;
     
 
     this->next_word();
@@ -85,22 +84,22 @@ std::vector<std::shared_ptr<Statement>> Parser::statement() {
         if (is_one_of(this->curr_word, TokenType::TYPE_INTEGER, TokenType::TYPE_CHAR, TokenType::TYPE_FLOAT, TokenType::TYPE_STRING))
         {
             auto var_decl = variable_decl();
-            std::shared_ptr<Statement> statement(new Statement);
+            std::unique_ptr<Statement> statement = std::make_unique<Statement>();
             statement->statement = var_decl;
-            statement_list.push_back(statement);
+            statement_list.push_back(std::move(statement));
         }
         else if (is_one_of(this->curr_word, TokenType::IF)) {
             // if statement
             IfStatement if_statemnt = if_statement();
-            std::shared_ptr<Statement> statement(new Statement);
-            statement->statement = if_statemnt;
-            statement_list.push_back(statement);
+            std::unique_ptr<Statement> statement = std::make_unique<Statement>();
+            statement->statement = std::move(if_statemnt);
+            statement_list.push_back(std::move(statement));
         }
         else {
             auto expression = expr();
-            std::shared_ptr<Statement> statement(new Statement);
+            std::unique_ptr<Statement> statement = std::make_unique<Statement>();
             statement->statement = ConvertVariant<decltype(statement->statement), decltype(expression)>(expression);
-            statement_list.push_back(statement);
+            statement_list.push_back(std::move(statement));
         }
     }
     
@@ -375,14 +374,14 @@ Overload(Ts...) -> Overload<Ts...>;
 std::string Parser::getTreeString()
 {
 
-    std::function<std::string(std::vector<std::shared_ptr<Statement>>)> goal_to_string;
-    std::function<std::string(std::variant<Factor, std::shared_ptr<Expr>, VariableDeclaration, IfStatement, WhileStatement>)> statement_to_string;
+    std::function<std::string(std::vector<std::unique_ptr<Statement>>&)> goal_to_string;
+    std::function<std::string(std::variant<Factor, std::shared_ptr<Expr>, VariableDeclaration, IfStatement, WhileStatement>&)> statement_to_string;
 
     std::function<std::string(std::variant<Factor, std::shared_ptr<Expr>>)> expr_to_string;
 
     std::function<std::string(Operator)> op_to_string;
 
-    std::function<std::string(IfStatement)> if_statement_to_string;
+    std::function<std::string(IfStatement&)> if_statement_to_string;
 
     std::function<std::string(Condition condition)> condition_to_string;
 
@@ -456,7 +455,7 @@ std::string Parser::getTreeString()
     };
 
 
-    if_statement_to_string = [&](IfStatement node) -> std::string {
+    if_statement_to_string = [&](IfStatement& node) -> std::string {
         std::string ret =  "(if " + condition_to_string(node.condition) + " ";
         
         ret += "(" + goal_to_string(node.then_statement) + ")";
@@ -465,7 +464,7 @@ std::string Parser::getTreeString()
         return ret + ")";
     };
 
-    statement_to_string = [&](std::variant<Factor, std::shared_ptr<Expr>, VariableDeclaration, IfStatement, WhileStatement> node) -> std::string
+    statement_to_string = [&](std::variant<Factor, std::shared_ptr<Expr>, VariableDeclaration, IfStatement, WhileStatement>& node) -> std::string
     {
         return std::visit(Overload{[&](std::shared_ptr<Expr> e) -> std::string
                             {
@@ -479,7 +478,7 @@ std::string Parser::getTreeString()
                             {
                                 return "(decl " + d.name + " " + variable_decl_to_string(d) + ")";
                             },
-                            [&](IfStatement d) -> std::string
+                            [&](IfStatement& d) -> std::string
                             {
                                 return if_statement_to_string(d);
                             },
@@ -508,10 +507,10 @@ std::string Parser::getTreeString()
                    node);
     };
 
-    goal_to_string = [&](std::vector<std::shared_ptr<Statement>> statement_list) -> std::string
+    goal_to_string = [&](std::vector<std::unique_ptr<Statement>>& statement_list) -> std::string
     {
         std::string strs;
-        for (std::shared_ptr<Statement> stmt: statement_list) {
+        for (const auto& stmt: statement_list) {
             strs += statement_to_string(stmt->statement);
         }
         return strs;

@@ -52,14 +52,12 @@ struct Statement;
 
 struct IfStatement {
     Condition condition;
-    std::vector<std::shared_ptr<Statement>> then_statement;
-    std::vector<std::shared_ptr<Statement>> else_statement;
+    std::vector<std::unique_ptr<Statement>> then_statement;
+    std::vector<std::unique_ptr<Statement>> else_statement;
 };
 
 struct WhileStatement {
     Condition condition;
-    std::vector<std::shared_ptr<Statement>> then_statement;
-    std::vector<std::shared_ptr<Statement>> else_statement;
 };
 
 struct Statement {
@@ -67,7 +65,7 @@ struct Statement {
 };
 
 struct Goal {
-    std::vector<std::shared_ptr<Statement>> statement_list;
+    std::vector<std::unique_ptr<Statement>> statement_list;
 };
 
 
